@@ -35,6 +35,7 @@ const uint8_t Limit_1 = 7;                // Limit Switch
 
 int key;                                  // Motor Test Input
 
+// Edge Counting Variables
 IntervalTimer InputFreqTimer;
 volatile uint16_t EdgeCount = 0;            // use volatile for shared variables
 volatile float Frequency_Measure = 10000;   // Calculate every 10,000 micro-s
@@ -97,17 +98,17 @@ void loop()
 
 /*----------------------------Module Functions----------------------------*/
 
+//----- Edge counting functions
 void CountFallingEdges()
 {
   EdgeCount++;
-  Serial.print("HERE");
 }
-
 void inputFreq()
 {
   Serial.println(EdgeCount*100);
   EdgeCount = 0;
 }
+//-----
 
 uint8_t testForKey(void) {
   uint8_t keyEventOccurred = Serial.available();
