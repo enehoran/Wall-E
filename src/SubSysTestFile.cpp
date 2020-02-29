@@ -10,6 +10,8 @@
 /*-----------------------Module Function Prototypes-----------------------*/
 uint8_t testForKey(void);
 void RespToKey(void);
+void CountFallingEdges();
+void inputFreq();
 
 /*---------------------------State Definitions----------------------------*/
 
@@ -32,6 +34,10 @@ const uint8_t Left_Motor_Back_EnB = 10;   // PWM Speed Control
 const uint8_t Limit_1 = 7;                // Limit Switch
 
 int key;                                  // Motor Test Input
+
+IntervalTimer InputFreqTimer;
+volatile uint16_t EdgeCount = 0;            // use volatile for shared variables
+volatile float Frequency_Measure = 10000;   // Calculate every 10,000 micro-s
 
 /*-----------------------------Main Functions-----------------------------*/
 
@@ -60,6 +66,10 @@ void setup()
   digitalWrite(Right_Motors_IN2_IN4, LOW);  // This sets right motors to break (LogicInput1 = LogicInput2)
   digitalWrite(Left_Motors_IN2_IN4,  LOW);  //
   digitalWrite(Left_Motors_IN1_IN3,  LOW);  // This sets left motors to break (LogicInput1 = LogicInput2)
+
+  //Edge counting timer
+  attachInterrupt(digitalPinToInterrupt(SenseIR_1), CountFallingEdges, FALLING);
+  InputFreqTimer.begin(inputFreq, Frequency_Measure);
   
   while(!Serial);
 }
@@ -81,11 +91,23 @@ void loop()
 
   // delay(50);
 
-  if (testForKey()) RespToKey();
+  // if (testForKey()) RespToKey();
 
 }
 
 /*----------------------------Module Functions----------------------------*/
+
+void CountFallingEdges()
+{
+  EdgeCount++;
+  Serial.print("HERE");
+}
+
+void inputFreq()
+{
+  Serial.println(EdgeCount*100);
+  EdgeCount = 0;
+}
 
 uint8_t testForKey(void) {
   uint8_t keyEventOccurred = Serial.available();
