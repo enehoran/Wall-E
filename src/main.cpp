@@ -6,7 +6,6 @@
 #define ALIGNMENT_INTERVAL      15   // Need to calibrate
 #define OB_BACKUP_INTERVAL      15   // Need to calibrate
 #define OB_ROTATE_INTERVAL      15   // Need to calibrate
-#define MOTOR_HALF_SPEED        50
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
 #define MOTOR_SLOW_SPEED        10
@@ -69,6 +68,19 @@ int limit2Input;                          // Second limit switch input reading
 int tapeInput1;                           // Left tape sensor input reading
 int tapeInput2;                           // Right tape sensor input reading
 int irInput;                              // IR sensor input reading
+
+
+/* TODO:
+  Limit number of interrupts to two (use Metro library) b/c it's 
+    all the Teensy can handle
+  Use frequency output for IR sensor instead of analogRead
+  Update alignment code
+  Test out of bounds code
+  Add two more tape sensors in the code (each bot has 4)
+  Replace limit switch threshold with digital input
+  Test for out of bounds in global events check
+  Calibrate slow motor speed pwm setting
+*/
 
 
 /*-----------------------------Main Functions-----------------------------*/
