@@ -96,14 +96,14 @@ void countFallingEdges() {
 }
 
 void recordMeasuredIRFrequency() {
-  //noInterrupts();
+  noInterrupts();
   measuredIRFrequency = edgeCount * 100;
   edgeCount = 0;
-  //interrupts();
+  interrupts();
 }
 
 void setup() {
-  state = STATE_LOCALIZE;
+  state = STATE_IDLE;
   pinMode(tapeIR_FRONT_LEFT, INPUT);                     // Set Pin 23 as tape sensor input
   
   pinMode(senseIR_1, INPUT);                    // Set Pin 14 as IR beacon sensor
@@ -142,7 +142,7 @@ void loop() {
   switch (state) {
     case STATE_IDLE:
       Serial.println("State: Idle");
-      handleIdle();
+      // handleIdle();
     case STATE_LOCALIZE:
       Serial.println("State: Localize");
       handleLocalize();

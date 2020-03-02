@@ -78,17 +78,19 @@ void setup()
 void loop() 
 {
   // put your main code here, to run repeatedly:
-  // uint16_t photo_tr = analogRead(TapeIR_1);
-  // uint16_t photo_ir = digitalRead(SenseIR_1);
+  uint16_t photo_tr = analogRead(TapeIR_1);
+  uint16_t photo_ir = digitalRead(SenseIR_1);
 
-  // uint8_t limit_in1 = digitalRead(Limit_1);
+  uint8_t limit_in1 = digitalRead(Limit_1);
   
-  // Serial.print("Limit Switch: ");
-  // Serial.print(limit_in1);
-  // Serial.print("    Tape Sensor: ");
-  // Serial.print(photo_tr);
-  // Serial.print("    IR Sensor: ");
-  // Serial.println(photo_ir);
+  Serial.print("Limit Switch: ");
+  Serial.print(limit_in1);
+  Serial.print("    Tape Sensor: ");
+  Serial.print(photo_tr);
+  Serial.print("    IR Sensor: ");
+  Serial.print(photo_ir);
+  Serial.print("    Frequency: ");
+  Serial.println(EdgeCount*100);
 
   // delay(50);
 
