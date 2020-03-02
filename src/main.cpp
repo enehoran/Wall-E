@@ -25,6 +25,12 @@ void handleAlign(void);
 void handleMoveForward(void);
 void handleOutOfBounds(void);
 void handlePushing(void);
+void activateSpeed(int value);
+void handleOutOfBoundsLeft(void);
+void handleOutOfBoundsRight(void);
+void gameFinished(void);
+void alignmentFinished(void);
+void outOfBoundsFinished(void);
 
 /*---------------------------State Definitions----------------------------*/
 typedef enum {
