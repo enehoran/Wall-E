@@ -1,6 +1,8 @@
 #include <Arduino.h>
+#include <Metro.h>
 
 /*-----------------------------Module Defines-----------------------------*/
+#define IR_BEACON_FREQUENCY     10000
 #define MOTOR_TIMER_INTERVAL    2000 // Need to clarify var name
 #define GAME_TIMER_INTERVAL     130  // Need to correct
 #define ALIGNMENT_INTERVAL      15   // Need to calibrate
@@ -8,11 +10,12 @@
 #define OB_ROTATE_INTERVAL      15   // Need to calibrate
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
-#define MOTOR_SLOW_SPEED        10
+#define MOTOR_SLOW_SPEED        10   // Need to calibrate
 #define MOTOR_STOP              0
 #define IR_THRESHOLD            10   // Need to calibrate
 #define LIMIT_THRESHOLD         10   // Need to calibrate
 #define LINE_THRESHOLD          700  // Need to calibrate
+#define ALIGN_ROTATE_DIRECTION  "right"
 
 /*-----------------------Module Function Prototypes-----------------------*/
 void checkGlobalEvents(void);
@@ -22,6 +25,12 @@ void handleAlign(void);
 void handleMoveForward(void);
 void handleOutOfBounds(void);
 void handlePushing(void);
+void activateSpeed(int value);
+void handleOutOfBoundsLeft(void);
+void handleOutOfBoundsRight(void);
+void gameFinished(void);
+void alignmentFinished(void);
+void outOfBoundsFinished(void);
 
 /*---------------------------State Definitions----------------------------*/
 typedef enum {
@@ -37,56 +46,66 @@ typedef enum {
 /*----------------------------Module Variables----------------------------*/
 States_t state;
 
-IntervalTimer gameTimer;
-IntervalTimer motorTimer;
-IntervalTimer alignTimer;
-IntervalTimer outOfBoundsTimer;
+static Metro gameTimer = Metro(GAME_TIMER_INTERVAL);
+static Metro alignTimer = Metro(ALIGNMENT_INTERVAL);
+static Metro outOfBoundsTimer = Metro(OB_ROTATE_INTERVAL);
+IntervalTimer inputFrequencyTimer;
 
 bool gameActive = true;
 
-const uint8_t tapeIR_L = 22;              // Left Tape Sensor
-const uint8_t tapeIR_R = 23;              // Right Tape Sensor
+const uint8_t tapeIR_FRONT_LEFT = 22;          // Front Left Tape Sensor
+const uint8_t tapeIR_FRONT_RIGHT = 23;         // Front Right Tape Sensor
+const uint8_t tapeIR_BACK_LEFT = 27;           // Back Left Tape Sensor
+const uint8_t tapeIR_BACK_RIGHT = 28;          // Back Right Tape Sensor
 
-const uint8_t senseIR_1 = 14;             // IR Beacon Sensor
+const uint8_t senseIR_1 = 14;                  // IR Beacon Sensor
 
-const uint8_t rightMotors_IN1_IN3 = 0;    // Logic 1
-const uint8_t rightMotors_IN2_IN4 = 1;    // Logic 2
-const uint8_t rightMotorFront_EnA = 3;    // PWM Speed Control
-const uint8_t rightMotorBack_EnB = 4;     // PWM Speed Control
+const uint8_t rightMotors_IN1_IN3 = 0;         // Logic 1
+const uint8_t rightMotors_IN2_IN4 = 1;         // Logic 2
+const uint8_t rightMotorFront_EnA = 3;         // PWM Speed Control
+const uint8_t rightMotorBack_EnB = 4;          // PWM Speed Control
 
-const uint8_t leftMotors_IN1_IN3 = 5;     // Logic 1
-const uint8_t leftMotors_IN2_IN4 = 6;     // Logic 2
-const uint8_t leftMotorFront_EnA = 9;     // PWM Speed Control
-const uint8_t leftMotorBack_EnB = 10;     // PWM Speed Control
+const uint8_t leftMotors_IN1_IN3 = 5;          // Logic 1
+const uint8_t leftMotors_IN2_IN4 = 6;          // Logic 2
+const uint8_t leftMotorFront_EnA = 9;          // PWM Speed Control
+const uint8_t leftMotorBack_EnB = 10;          // PWM Speed Control
 
-const uint8_t limit_1 = 7;                // Limit Switch 1
-const uint8_t limit_2 = 8;                // Limit Switch 2
+const uint8_t limit_1 = 7;                     // Limit Switch 1
+const uint8_t limit_2 = 8;                     // Limit Switch 2
 
-int key;                                  // Motor Test Input
-int limit1Input;                          // First limit switch input reading
-int limit2Input;                          // Second limit switch input reading
-int tapeInput1;                           // Left tape sensor input reading
-int tapeInput2;                           // Right tape sensor input reading
-int irInput;                              // IR sensor input reading
+int key;                                       // Motor Test Input
+int limit1Input;                               // First limit switch input reading
+int limit2Input;                               // Second limit switch input reading
+int tapeInput1;                                // Left tape sensor input reading
+int tapeInput2;                                // Right tape sensor input reading
+int measuredIRFrequency = 0;                   // IR sensor input reading
 
+volatile uint16_t edgeCount = 0;               // Track number of falling waves in waveform
+volatile float irMeasurementFrequency = 10000; // Calculate every 10,000 micro-seconds
+float irFrequencyPrecision = 500;              // Need to calibrate
 
 /* TODO:
-  Limit number of interrupts to two (use Metro library) b/c it's 
-    all the Teensy can handle
-  Use frequency output for IR sensor instead of analogRead
-  Update alignment code
   Test out of bounds code
-  Add two more tape sensors in the code (each bot has 4)
   Replace limit switch threshold with digital input
   Test for out of bounds in global events check
   Calibrate slow motor speed pwm setting
 */
 
-
 /*-----------------------------Main Functions-----------------------------*/
+
+void countFallingEdges() {
+  edgeCount++;
+}
+
+void recordMeasuredIRFrequency() {
+  noInterrupts();
+  measuredIRFrequency = edgeCount * 100;
+  interrupts();
+}
+
 void setup() {
   state = STATE_LOCALIZE;
-  pinMode(tapeIR_L, INPUT);                     // Set Pin 23 as tape sensor input
+  pinMode(tapeIR_FRONT_LEFT, INPUT);                     // Set Pin 23 as tape sensor input
   
   pinMode(senseIR_1, INPUT);                    // Set Pin 14 as IR beacon sensor
   
@@ -102,6 +121,9 @@ void setup() {
   
   pinMode(limit_1, INPUT);                      // Set Pin 7 as Limit Switch 1
   pinMode(limit_2, INPUT);                      // Set Pin 8 as Limit Switch 2
+
+  attachInterrupt(digitalPinToInterrupt(senseIR_1), countFallingEdges, FALLING);
+  inputFrequencyTimer.begin(recordMeasuredIRFrequency, irMeasurementFrequency);
 }
 
 void endGame() {
@@ -147,12 +169,26 @@ void loop() {
   }
 }
 
+uint8_t testGameTimerExpired(void) {
+  return (uint8_t) gameTimer.check();
+}
+
+uint8_t testAlignTimerExpired(void) {
+  return (uint8_t) alignTimer.check();
+}
+
+uint8_t testOutOfBoundsTimerExpired(void) {
+  return (uint8_t) outOfBoundsTimer.check();
+}
+
 void checkGlobalEvents() {
   limit1Input = digitalRead(limit_1);
   limit2Input = digitalRead(limit_2);
-  tapeInput1 = analogRead(tapeIR_L);
-  tapeInput2 = analogRead(tapeIR_R);
-  irInput = digitalRead(senseIR_1);
+  tapeInput1 = analogRead(tapeIR_FRONT_LEFT);
+  tapeInput2 = analogRead(tapeIR_FRONT_RIGHT);
+  if (testGameTimerExpired()) gameFinished();
+  if (testAlignTimerExpired()) alignmentFinished();
+  if (testOutOfBoundsTimerExpired()) outOfBoundsFinished();
   /*Serial.print("Ir input: ");
   Serial.print(irInput);
   Serial.print("      Tape pin: ");
@@ -160,13 +196,13 @@ void checkGlobalEvents() {
   delay(100);*/
 }
 
-void gameTimerExpired(){
+void gameFinished(){
   gameActive = false;
 }
 
 void handleIdle(){
   if (gameActive) {
-    gameTimer.begin(gameTimerExpired, GAME_TIMER_INTERVAL);
+    gameTimer.reset();
     state = STATE_LOCALIZE;
   }
 };
@@ -206,14 +242,20 @@ void alignmentFinished(){
 void handleLocalize(){
   setDirectionRight();
   activateSpeed(MOTOR_HALF_SPEED);
-  if (irInput > IR_THRESHOLD){
+  if (abs(IR_BEACON_FREQUENCY - measuredIRFrequency) < irFrequencyPrecision){
     state = STATE_ALIGN;
-    alignTimer.begin(alignmentFinished, ALIGNMENT_INTERVAL);
+    alignTimer.reset();
   }
 };
 
 void handleAlign(){
-  setDirectionRight();
+  if (strcmp(ALIGN_ROTATE_DIRECTION, "right") == 0) {
+    setDirectionRight();
+  }
+  else if (strcmp(ALIGN_ROTATE_DIRECTION, "left") == 0) {
+    setDirectionLeft();
+  }
+  
   activateSpeed(MOTOR_HALF_SPEED);
 };
 
@@ -238,13 +280,13 @@ void outOfBoundsFinished() {
 }
 
 void testLineThreshold() {
-  if (tapeIR_L > LINE_THRESHOLD) {
+  if (tapeIR_FRONT_LEFT > LINE_THRESHOLD) {
     state = STATE_OUT_OB_L;
-    outOfBoundsTimer.begin(outOfBoundsFinished, OB_ROTATE_INTERVAL);
+    outOfBoundsTimer.reset();
   }
-  else if (tapeIR_R > LINE_THRESHOLD) {
+  else if (tapeIR_FRONT_RIGHT > LINE_THRESHOLD) {
     state = STATE_OUT_OB_R;
-    outOfBoundsTimer.begin(outOfBoundsFinished, OB_ROTATE_INTERVAL);
+    outOfBoundsTimer.reset();
   }
 }
 
