@@ -3,15 +3,14 @@
 
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
-#define MOTOR_TIMER_INTERVAL    2000 // Need to clarify var name
 #define GAME_TIMER_INTERVAL     128000  // Need to correct
-#define ALIGNMENT_INTERVAL      150   // Need to calibrate
+#define ALIGNMENT_INTERVAL      5000   // Need to calibrate
 #define FAKE_INTERVAL           150000 // Longer than game timer; for Metro calibration
-#define OB_BACKUP_INTERVAL      150   // Need to calibrate
-#define OB_ROTATE_INTERVAL      150   // Need to calibrate
+#define OB_BACKUP_INTERVAL      5000   // Need to calibrate
+#define OB_ROTATE_INTERVAL      5000   // Need to calibrate
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
-#define MOTOR_SLOW_SPEED        60   // Need to calibrate
+#define MOTOR_SLOW_SPEED        80   // Need to calibrate
 #define MOTOR_STOP              0
 #define LIMIT_THRESHOLD         10   // Need to calibrate
 #define LINE_THRESHOLD          700  // Need to calibrate
@@ -45,7 +44,7 @@ typedef enum {
 
 /*----------------------------Module Variables----------------------------*/
 States_t state;
-static Metro gameTimer = Metro(GAME_TIMER_INTERVAL);
+static Metro gameTimer = Metro(GAME_TIMER_INTERVAL); // TODO change to millis()
 static Metro alignTimer = Metro(FAKE_INTERVAL);
 static Metro outOfBoundsTimer = Metro(FAKE_INTERVAL);
 IntervalTimer inputFrequencyTimer;
@@ -129,6 +128,7 @@ void setup() {
 void endGame() {
   state = STATE_IDLE;
   activateSpeed(MOTOR_STOP);
+  Serial.println("Game over");
 }
 
 void loop() {
@@ -251,7 +251,7 @@ void handleLocalize(){
   if (abs(IR_BEACON_FREQUENCY - measuredIRFrequency) < irFrequencyPrecision){
     state = STATE_ALIGN;
     alignTimer.interval(ALIGNMENT_INTERVAL);
-    alignTimer.reset();
+    //alignTimer.reset();
   }
 };
 
