@@ -2,17 +2,17 @@
 #include <Metro.h>
 
 /*-----------------------------Module Defines-----------------------------*/
-#define IR_BEACON_FREQUENCY     10000
+#define IR_BEACON_FREQUENCY     1000
 #define MOTOR_TIMER_INTERVAL    2000 // Need to clarify var name
-#define GAME_TIMER_INTERVAL     130  // Need to correct
-#define ALIGNMENT_INTERVAL      15   // Need to calibrate
-#define OB_BACKUP_INTERVAL      15   // Need to calibrate
-#define OB_ROTATE_INTERVAL      15   // Need to calibrate
+#define GAME_TIMER_INTERVAL     128000  // Need to correct
+#define ALIGNMENT_INTERVAL      150   // Need to calibrate
+#define FAKE_INTERVAL           150000 // Longer than game timer; for Metro calibration
+#define OB_BACKUP_INTERVAL      150   // Need to calibrate
+#define OB_ROTATE_INTERVAL      150   // Need to calibrate
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
-#define MOTOR_SLOW_SPEED        10   // Need to calibrate
+#define MOTOR_SLOW_SPEED        60   // Need to calibrate
 #define MOTOR_STOP              0
-#define IR_THRESHOLD            10   // Need to calibrate
 #define LIMIT_THRESHOLD         10   // Need to calibrate
 #define LINE_THRESHOLD          700  // Need to calibrate
 #define ALIGN_ROTATE_DIRECTION  "right"
@@ -45,10 +45,9 @@ typedef enum {
 
 /*----------------------------Module Variables----------------------------*/
 States_t state;
-
 static Metro gameTimer = Metro(GAME_TIMER_INTERVAL);
-static Metro alignTimer = Metro(ALIGNMENT_INTERVAL);
-static Metro outOfBoundsTimer = Metro(OB_ROTATE_INTERVAL);
+static Metro alignTimer = Metro(FAKE_INTERVAL);
+static Metro outOfBoundsTimer = Metro(FAKE_INTERVAL);
 IntervalTimer inputFrequencyTimer;
 
 bool gameActive = true;
@@ -82,13 +81,13 @@ int measuredIRFrequency = 0;                   // IR sensor input reading
 
 volatile uint16_t edgeCount = 0;               // Track number of falling waves in waveform
 volatile float irMeasurementFrequency = 10000; // Calculate every 10,000 micro-seconds
-float irFrequencyPrecision = 500;              // Need to calibrate
+float irFrequencyPrecision = 20;              // Need to calibrate
 
 /* TODO:
   Test out of bounds code
   Replace limit switch threshold with digital input
   Test for out of bounds in global events check
-  Calibrate slow motor speed pwm setting
+  Test if stops after 2:10
 */
 
 /*-----------------------------Main Functions-----------------------------*/
@@ -98,9 +97,10 @@ void countFallingEdges() {
 }
 
 void recordMeasuredIRFrequency() {
-  noInterrupts();
+  //noInterrupts();
   measuredIRFrequency = edgeCount * 100;
-  interrupts();
+  edgeCount = 0;
+  //interrupts();
 }
 
 void setup() {
@@ -132,6 +132,9 @@ void endGame() {
 }
 
 void loop() {
+  delay(1000);
+  Serial.print("Frequency: ");
+  Serial.println(measuredIRFrequency);
   checkGlobalEvents();
   if (!gameActive) {
     endGame();
@@ -187,7 +190,9 @@ void checkGlobalEvents() {
   tapeInput1 = analogRead(tapeIR_FRONT_LEFT);
   tapeInput2 = analogRead(tapeIR_FRONT_RIGHT);
   if (testGameTimerExpired()) gameFinished();
-  if (testAlignTimerExpired()) alignmentFinished();
+  if (testAlignTimerExpired()) {
+    Serial.println("Align timer expired");
+    alignmentFinished();}
   if (testOutOfBoundsTimerExpired()) outOfBoundsFinished();
   /*Serial.print("Ir input: ");
   Serial.print(irInput);
@@ -236,14 +241,16 @@ void activateSpeed(int value){
 }
 
 void alignmentFinished(){
+  Serial.println("Alignment finished");
   state = STATE_MOVE_FORWARD;
 }
 
 void handleLocalize(){
   setDirectionRight();
-  activateSpeed(MOTOR_HALF_SPEED);
+  activateSpeed(MOTOR_SLOW_SPEED);
   if (abs(IR_BEACON_FREQUENCY - measuredIRFrequency) < irFrequencyPrecision){
     state = STATE_ALIGN;
+    alignTimer.interval(ALIGNMENT_INTERVAL);
     alignTimer.reset();
   }
 };
@@ -280,13 +287,18 @@ void outOfBoundsFinished() {
 }
 
 void testLineThreshold() {
+  return; // TODO remove when tape sensors are added
   if (tapeIR_FRONT_LEFT > LINE_THRESHOLD) {
     state = STATE_OUT_OB_L;
+    outOfBoundsTimer.interval(OB_ROTATE_INTERVAL);
     outOfBoundsTimer.reset();
+    //outOfBoundsTimer.reset();
   }
   else if (tapeIR_FRONT_RIGHT > LINE_THRESHOLD) {
     state = STATE_OUT_OB_R;
+    outOfBoundsTimer.interval(OB_ROTATE_INTERVAL);
     outOfBoundsTimer.reset();
+    //outOfBoundsTimer.reset();
   }
 }
 
