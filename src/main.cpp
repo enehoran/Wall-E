@@ -3,17 +3,14 @@
 
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
-#define GAME_TIMER_INTERVAL     128000  // Need to correct
-#define ALIGNMENT_INTERVAL      5000   // Need to calibrate
-#define FAKE_INTERVAL           150000 // Longer than game timer; for Metro calibration
-#define OB_BACKUP_INTERVAL      5000   // Need to calibrate
-#define OB_ROTATE_INTERVAL      5000   // Need to calibrate
+#define GAME_TIMER_INTERVAL     130000
+#define ALIGNMENT_INTERVAL      1500    // Need to calibrate (pi/2 rads)
+#define OB_ROTATE_INTERVAL      250     // Need to calibrate
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
-#define MOTOR_SLOW_SPEED        80   // Need to calibrate
+#define MOTOR_SLOW_SPEED        80
 #define MOTOR_STOP              0
-#define LIMIT_THRESHOLD         10   // Need to calibrate
-#define LINE_THRESHOLD          700  // Need to calibrate
+#define LINE_THRESHOLD          700     // Need to calibrate
 #define ALIGN_ROTATE_DIRECTION  "right"
 
 /*-----------------------Module Function Prototypes-----------------------*/
@@ -36,7 +33,7 @@ typedef enum {
   STATE_IDLE,
   STATE_LOCALIZE,
   STATE_ALIGN,
-  STATE_MOVE_FORWARD, 
+  STATE_FORWARD, 
   STATE_OUT_OB_L,
   STATE_OUT_OB_R,
   STATE_PUSHING
@@ -45,8 +42,8 @@ typedef enum {
 /*----------------------------Module Variables----------------------------*/
 States_t state;
 static Metro gameTimer = Metro(GAME_TIMER_INTERVAL); // TODO change to millis()
-static Metro alignTimer = Metro(FAKE_INTERVAL);
-static Metro outOfBoundsTimer = Metro(FAKE_INTERVAL);
+static Metro alignTimer = Metro(ALIGNMENT_INTERVAL);
+static Metro outOfBoundsTimer = Metro(OB_ROTATE_INTERVAL);
 IntervalTimer inputFrequencyTimer;
 
 bool gameActive = true;
@@ -103,8 +100,12 @@ void recordMeasuredIRFrequency() {
 }
 
 void setup() {
+  Serial.begin(9300);
+  while(!Serial);
+
   state = STATE_IDLE;
-  pinMode(tapeIR_FRONT_LEFT, INPUT);                     // Set Pin 23 as tape sensor input
+  
+  pinMode(tapeIR_FRONT_LEFT, INPUT);            // Set Pin 23 as tape sensor input
   
   pinMode(senseIR_1, INPUT);                    // Set Pin 14 as IR beacon sensor
   
@@ -132,9 +133,6 @@ void endGame() {
 }
 
 void loop() {
-  delay(1000);
-  Serial.print("Frequency: ");
-  Serial.println(measuredIRFrequency);
   checkGlobalEvents();
   if (!gameActive) {
     endGame();
@@ -142,7 +140,8 @@ void loop() {
   switch (state) {
     case STATE_IDLE:
       Serial.println("State: Idle");
-      // handleIdle();
+      handleIdle();
+      break;
     case STATE_LOCALIZE:
       Serial.println("State: Localize");
       handleLocalize();
@@ -151,7 +150,7 @@ void loop() {
       Serial.println("State: Align");
       handleAlign();
       break;
-    case STATE_MOVE_FORWARD:
+    case STATE_FORWARD:
       Serial.println("State: Forward");
       handleMoveForward();
       break;
@@ -190,10 +189,6 @@ void checkGlobalEvents() {
   tapeInput1 = analogRead(tapeIR_FRONT_LEFT);
   tapeInput2 = analogRead(tapeIR_FRONT_RIGHT);
   if (testGameTimerExpired()) gameFinished();
-  if (testAlignTimerExpired()) {
-    Serial.println("Align timer expired");
-    alignmentFinished();}
-  if (testOutOfBoundsTimerExpired()) outOfBoundsFinished();
   /*Serial.print("Ir input: ");
   Serial.print(irInput);
   Serial.print("      Tape pin: ");
@@ -213,8 +208,6 @@ void handleIdle(){
 };
 
 void setDirectionLeft(){
-  Serial.println("Turn Left");
-
   digitalWrite(rightMotors_IN1_IN3, HIGH);
   digitalWrite(rightMotors_IN2_IN4, LOW);
 
@@ -223,8 +216,6 @@ void setDirectionLeft(){
 }
 
 void setDirectionRight(){
-  Serial.println("Turn Right");
-
   digitalWrite(rightMotors_IN1_IN3, LOW);
   digitalWrite(rightMotors_IN2_IN4, HIGH);
 
@@ -242,20 +233,25 @@ void activateSpeed(int value){
 
 void alignmentFinished(){
   Serial.println("Alignment finished");
-  state = STATE_MOVE_FORWARD;
+  state = STATE_FORWARD;
 }
 
 void handleLocalize(){
   setDirectionRight();
   activateSpeed(MOTOR_SLOW_SPEED);
+  Serial.println(abs(IR_BEACON_FREQUENCY - measuredIRFrequency));
   if (abs(IR_BEACON_FREQUENCY - measuredIRFrequency) < irFrequencyPrecision){
     state = STATE_ALIGN;
-    alignTimer.interval(ALIGNMENT_INTERVAL);
-    //alignTimer.reset();
+    alignTimer.reset();
   }
 };
 
 void handleAlign(){
+  if (testAlignTimerExpired()) {
+    Serial.println("Align timer expired");
+    alignmentFinished();
+  }
+
   if (strcmp(ALIGN_ROTATE_DIRECTION, "right") == 0) {
     setDirectionRight();
   }
@@ -283,29 +279,25 @@ void setDirectionBackward() {
 }
 
 void outOfBoundsFinished() {
-  state = STATE_MOVE_FORWARD;
+  state = STATE_FORWARD;
 }
 
 void testLineThreshold() {
   return; // TODO remove when tape sensors are added
   if (tapeIR_FRONT_LEFT > LINE_THRESHOLD) {
     state = STATE_OUT_OB_L;
-    outOfBoundsTimer.interval(OB_ROTATE_INTERVAL);
     outOfBoundsTimer.reset();
-    //outOfBoundsTimer.reset();
   }
   else if (tapeIR_FRONT_RIGHT > LINE_THRESHOLD) {
     state = STATE_OUT_OB_R;
-    outOfBoundsTimer.interval(OB_ROTATE_INTERVAL);
     outOfBoundsTimer.reset();
-    //outOfBoundsTimer.reset();
   }
 }
 
 void handleMoveForward(){
   setDirectionForward();
   activateSpeed(MOTOR_HALF_SPEED);
-  if (limit1Input > LIMIT_THRESHOLD || limit2Input > LIMIT_THRESHOLD){
+  if (limit1Input == 1 || limit2Input == 1){
     state = STATE_PUSHING;
   }
   testLineThreshold();
@@ -314,11 +306,13 @@ void handleMoveForward(){
 void handleOutOfBoundsLeft(){
   setDirectionRight();
   activateSpeed(MOTOR_HALF_SPEED);
+  if (testOutOfBoundsTimerExpired()) outOfBoundsFinished();
 };
 
 void handleOutOfBoundsRight(){
   setDirectionLeft();
   activateSpeed(MOTOR_HALF_SPEED);
+  if (testOutOfBoundsTimerExpired()) outOfBoundsFinished();
 };
 
 void handlePushing(){
