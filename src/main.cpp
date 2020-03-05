@@ -4,11 +4,11 @@
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
 #define GAME_TIMER_INTERVAL     130000
-#define ROTATE_PI_INTERVAL      2000    // Need to calibrate (pi/2 rads)
-#define OB_BACK_INTERVAL        500     // Need to calibrate
-#define OB_ROTATE_INTERVAL      500     // Need to calibrate
-#define PUSHING_INTERVAL        100     // Need to calibrate
-#define REVERSE_INTERVAL        500     // Need to calibrate
+#define ROTATE_PI_INTERVAL      2000
+#define OB_BACK_INTERVAL        500
+#define OB_ROTATE_INTERVAL      500
+#define PUSHING_INTERVAL        100
+#define REVERSE_INTERVAL        500
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
 #define MOTOR_SLOW_SPEED        80
