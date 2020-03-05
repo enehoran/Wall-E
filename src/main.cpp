@@ -10,8 +10,8 @@
 #define PUSHING_INTERVAL        100     // Need to calibrate
 #define REVERSE_INTERVAL        500     // Need to calibrate
 #define MOTOR_FULL_SPEED        255
-#define MOTOR_HALF_SPEED        124
-#define MOTOR_SLOW_SPEED        80
+#define MOTOR_HALF_SPEED        110      //124
+#define MOTOR_SLOW_SPEED        90
 #define MOTOR_STOP              0
 #define LINE_THRESHOLD          150     // Need to calibrate
 #define ALIGN_ROTATE_DIRECTION  "right"
@@ -63,7 +63,7 @@ static Metro alignTimer = Metro(ROTATE_PI_INTERVAL / 2);
 static Metro outOfBoundsRotateTimer = Metro(OB_ROTATE_INTERVAL);
 static Metro outOfBoundsBackwardForwardTimer = Metro(OB_BACK_INTERVAL);
 static Metro reverseTimer = Metro(REVERSE_INTERVAL);
-static Metro switchTimer = Metro(ROTATE_PI_INTERVAL);
+static Metro switchTimer = Metro(ROTATE_PI_INTERVAL * 2);
 static Metro pushingTimer = Metro(PUSHING_INTERVAL);
 IntervalTimer inputFrequencyTimer;
 
