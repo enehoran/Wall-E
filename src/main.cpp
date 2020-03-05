@@ -4,13 +4,16 @@
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
 #define GAME_TIMER_INTERVAL     130000
-#define ALIGNMENT_INTERVAL      1500    // Need to calibrate (pi/2 rads)
-#define OB_ROTATE_INTERVAL      250     // Need to calibrate
+#define ROTATE_PI_INTERVAL      2000    // Need to calibrate (pi/2 rads)
+#define OB_BACK_INTERVAL        500     // Need to calibrate
+#define OB_ROTATE_INTERVAL      500     // Need to calibrate
+#define PUSHING_INTERVAL        100     // Need to calibrate
+#define REVERSE_INTERVAL        500     // Need to calibrate
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
 #define MOTOR_SLOW_SPEED        80
 #define MOTOR_STOP              0
-#define LINE_THRESHOLD          700     // Need to calibrate
+#define LINE_THRESHOLD          150     // Need to calibrate
 #define ALIGN_ROTATE_DIRECTION  "right"
 
 /*-----------------------Module Function Prototypes-----------------------*/
@@ -21,9 +24,13 @@ void handleAlign(void);
 void handleMoveForward(void);
 void handleOutOfBounds(void);
 void handlePushing(void);
+void handleReversing(void);
+void handleSwitching(void);
 void activateSpeed(int value);
-void handleOutOfBoundsLeft(void);
-void handleOutOfBoundsRight(void);
+void handleOutOfBoundsLeftRotate(void);
+void handleOutOfBoundsRightRotate(void);
+void handleOutOfBoundsLeftBackup(void);
+void handleOutOfBoundsRightBackup(void);
 void gameFinished(void);
 void alignmentFinished(void);
 void outOfBoundsFinished(void);
@@ -34,24 +41,34 @@ typedef enum {
   STATE_LOCALIZE,
   STATE_ALIGN,
   STATE_FORWARD, 
-  STATE_OUT_OB_L,
-  STATE_OUT_OB_R,
-  STATE_PUSHING
+  STATE_OUT_OB_L_R,
+  STATE_OUT_OB_R_R,
+  STATE_OUT_OB_L_B,
+  STATE_OUT_OB_R_B,
+  STATE_OUT_OB_L_F,
+  STATE_OUT_OB_R_F,
+  STATE_PUSHING,
+  STATE_REVERSING,
+  STATE_SWITCHING,
 } States_t;
 
 /*----------------------------Module Variables----------------------------*/
 States_t state;
 static Metro gameTimer = Metro(GAME_TIMER_INTERVAL); // TODO change to millis()
-static Metro alignTimer = Metro(ALIGNMENT_INTERVAL);
-static Metro outOfBoundsTimer = Metro(OB_ROTATE_INTERVAL);
+static Metro alignTimer = Metro(2 * ROTATE_PI_INTERVAL / 2);
+static Metro outOfBoundsRotateTimer = Metro(OB_ROTATE_INTERVAL);
+static Metro outOfBoundsBackwardForwardTimer = Metro(OB_BACK_INTERVAL);
+static Metro reverseTimer = Metro(REVERSE_INTERVAL);
+static Metro switchTimer = Metro(ROTATE_PI_INTERVAL * 1.5);
+static Metro pushingTimer = Metro(PUSHING_INTERVAL);
 IntervalTimer inputFrequencyTimer;
 
 bool gameActive = true;
 
 const uint8_t tapeIR_FRONT_LEFT = 22;          // Front Left Tape Sensor
 const uint8_t tapeIR_FRONT_RIGHT = 23;         // Front Right Tape Sensor
-const uint8_t tapeIR_BACK_LEFT = 27;           // Back Left Tape Sensor
-const uint8_t tapeIR_BACK_RIGHT = 28;          // Back Right Tape Sensor
+const uint8_t tapeIR_BACK_LEFT = 20;           // Back Left Tape Sensor
+const uint8_t tapeIR_BACK_RIGHT = 21;          // Back Right Tape Sensor
 
 const uint8_t senseIR_1 = 14;                  // IR Beacon Sensor
 
@@ -81,9 +98,6 @@ float irFrequencyPrecision = 20;              // Need to calibrate
 
 /* TODO:
   Test out of bounds code
-  Replace limit switch threshold with digital input
-  Test for out of bounds in global events check
-  Test if stops after 2:10
 */
 
 /*-----------------------------Main Functions-----------------------------*/
@@ -106,6 +120,9 @@ void setup() {
   state = STATE_IDLE;
   
   pinMode(tapeIR_FRONT_LEFT, INPUT);            // Set Pin 23 as tape sensor input
+  pinMode(tapeIR_FRONT_RIGHT, INPUT);           // Set Pin 23 as tape sensor input
+  pinMode(tapeIR_BACK_LEFT, INPUT);             // Set Pin 23 as tape sensor input
+  pinMode(tapeIR_BACK_RIGHT, INPUT);            // Set Pin 23 as tape sensor input
   
   pinMode(senseIR_1, INPUT);                    // Set Pin 14 as IR beacon sensor
   
@@ -154,17 +171,41 @@ void loop() {
       Serial.println("State: Forward");
       handleMoveForward();
       break;
-    case STATE_OUT_OB_L:
-      Serial.println("State: Out of bounds (left)");
-      handleOutOfBoundsLeft();
+    case STATE_OUT_OB_L_R:
+      Serial.println("State: Out of bounds, turning (left)");
+      handleOutOfBoundsLeftRotate();
       break;
-    case STATE_OUT_OB_R:
-      Serial.println("State: Out of bounds (right)");
-      handleOutOfBoundsRight();
+    case STATE_OUT_OB_R_R:
+      Serial.println("State: Out of bounds, turning (right)");
+      handleOutOfBoundsRightRotate();
+      break;
+    case STATE_OUT_OB_L_B:
+      Serial.println("State: Out of bounds, backing up (left)");
+      handleOutOfBoundsLeftBackup();
+      break;
+    case STATE_OUT_OB_R_B:
+      Serial.println("State: Out of bounds, backing up (right)");
+      handleOutOfBoundsRightBackup();
+      break;
+    case STATE_OUT_OB_L_F:
+      Serial.println("State: Out of bounds, going forward (left)");
+      handleOutOfBoundsLeftForward();
+      break;
+    case STATE_OUT_OB_R_F:
+      Serial.println("State: Out of bounds, going forward (right)");
+      handleOutOfBoundsRightForward();
       break;
     case STATE_PUSHING:
       Serial.println("State: Pushing");
       handlePushing();
+      break;
+    case STATE_REVERSING:
+      Serial.println("State: Reversing");
+      handleReversing();
+      break;
+    case STATE_SWITCHING:
+      Serial.println("State: Switching");
+      handleSwitching();
       break;
     default:    // Should never get into an unhandled state
       Serial.println("What is this I do not even...");
@@ -179,21 +220,30 @@ uint8_t testAlignTimerExpired(void) {
   return (uint8_t) alignTimer.check();
 }
 
-uint8_t testOutOfBoundsTimerExpired(void) {
-  return (uint8_t) outOfBoundsTimer.check();
+uint8_t testOutOfBoundsRotateTimerExpired(void) {
+  return (uint8_t) outOfBoundsRotateTimer.check();
+}
+
+uint8_t testOutOfBoundsBackupForwardTimerExpired(void) {
+  return (uint8_t) outOfBoundsBackwardForwardTimer.check();
+}
+
+uint8_t testPushingTimerExpired(void) {
+  return (uint8_t) pushingTimer.check();
+}
+
+uint8_t testReversingTimerExpired(void) {
+  return (uint8_t) reverseTimer.check();
+}
+
+uint8_t testSwitchingTimerExpired(void) {
+  return (uint8_t) switchTimer.check();
 }
 
 void checkGlobalEvents() {
   limit1Input = digitalRead(limit_1);
   limit2Input = digitalRead(limit_2);
-  tapeInput1 = analogRead(tapeIR_FRONT_LEFT);
-  tapeInput2 = analogRead(tapeIR_FRONT_RIGHT);
   if (testGameTimerExpired()) gameFinished();
-  /*Serial.print("Ir input: ");
-  Serial.print(irInput);
-  Serial.print("      Tape pin: ");
-  Serial.println(tape_in);
-  delay(100);*/
 }
 
 void gameFinished(){
@@ -282,16 +332,42 @@ void outOfBoundsFinished() {
   state = STATE_FORWARD;
 }
 
-void testLineThreshold() {
-  return; // TODO remove when tape sensors are added
-  if (tapeIR_FRONT_LEFT > LINE_THRESHOLD) {
-    state = STATE_OUT_OB_L;
-    outOfBoundsTimer.reset();
+void avoidLines() {
+  uint16_t tapeSensorMeasurementFrontLeft = analogRead(tapeIR_FRONT_LEFT);
+  uint16_t tapeSensorMeasurementFrontRight = analogRead(tapeIR_FRONT_RIGHT);
+  uint16_t tapeSensorMeasurementBackLeft = analogRead(tapeIR_BACK_LEFT);
+  uint16_t tapeSensorMeasurementBackRight = analogRead(tapeIR_BACK_RIGHT);
+  Serial.println(LINE_THRESHOLD);
+  if (tapeSensorMeasurementFrontLeft < LINE_THRESHOLD) {
+    state = STATE_OUT_OB_L_B;
+    outOfBoundsBackwardForwardTimer.reset();
   }
-  else if (tapeIR_FRONT_RIGHT > LINE_THRESHOLD) {
-    state = STATE_OUT_OB_R;
-    outOfBoundsTimer.reset();
+  else if (tapeSensorMeasurementFrontRight < LINE_THRESHOLD) {
+    state = STATE_OUT_OB_R_B;
+    outOfBoundsBackwardForwardTimer.reset();
   }
+  else if (tapeSensorMeasurementBackLeft < LINE_THRESHOLD) {
+    state = STATE_OUT_OB_L_F;
+    outOfBoundsBackwardForwardTimer.reset();
+  }
+  else if (tapeSensorMeasurementBackRight < LINE_THRESHOLD) {
+    state = STATE_OUT_OB_R_F;
+    outOfBoundsBackwardForwardTimer.reset();
+  }
+}
+
+void initiateBackup(){
+  state = STATE_REVERSING;
+  reverseTimer.reset();
+}
+
+void switchDirections(){
+  state = STATE_SWITCHING;
+  switchTimer.reset();
+}
+
+void resumeForward(){
+  state = STATE_FORWARD;
 }
 
 void handleMoveForward(){
@@ -299,24 +375,76 @@ void handleMoveForward(){
   activateSpeed(MOTOR_HALF_SPEED);
   if (limit1Input == 1 || limit2Input == 1){
     state = STATE_PUSHING;
+    pushingTimer.reset();
   }
-  testLineThreshold();
+  avoidLines();
 };
 
-void handleOutOfBoundsLeft(){
+void handleOutOfBoundsLeftRotate(){
   setDirectionRight();
   activateSpeed(MOTOR_HALF_SPEED);
-  if (testOutOfBoundsTimerExpired()) outOfBoundsFinished();
+  if (testOutOfBoundsRotateTimerExpired()) outOfBoundsFinished();
 };
 
-void handleOutOfBoundsRight(){
+void handleOutOfBoundsRightRotate(){
   setDirectionLeft();
   activateSpeed(MOTOR_HALF_SPEED);
-  if (testOutOfBoundsTimerExpired()) outOfBoundsFinished();
+  if (testOutOfBoundsRotateTimerExpired()) outOfBoundsFinished();
+};
+
+void handleOutOfBoundsLeftBackup(){
+  setDirectionBackward();
+  activateSpeed(MOTOR_HALF_SPEED);
+  if (testOutOfBoundsBackupForwardTimerExpired()){
+    state = STATE_OUT_OB_L_R;
+    outOfBoundsRotateTimer.reset();
+  }
+};
+
+void handleOutOfBoundsRightBackup(){
+  setDirectionBackward();
+  activateSpeed(MOTOR_HALF_SPEED);
+  if (testOutOfBoundsBackupForwardTimerExpired()){
+    state = STATE_OUT_OB_R_R;
+    outOfBoundsRotateTimer.reset();
+  }
+};
+
+void handleOutOfBoundsLeftForward(){
+  setDirectionForward();
+  activateSpeed(MOTOR_HALF_SPEED);
+  if (testOutOfBoundsBackupForwardTimerExpired()){
+    state = STATE_OUT_OB_L_R;
+    outOfBoundsRotateTimer.reset();
+  }
+};
+
+void handleOutOfBoundsRightForward(){
+  setDirectionForward();
+  activateSpeed(MOTOR_HALF_SPEED);
+  if (testOutOfBoundsBackupForwardTimerExpired()){
+    state = STATE_OUT_OB_R_R;
+    outOfBoundsRotateTimer.reset();
+  }
 };
 
 void handlePushing(){
   setDirectionForward();
   activateSpeed(MOTOR_FULL_SPEED);
-  testLineThreshold();
+  if (testPushingTimerExpired()) initiateBackup();
+  avoidLines();
 };
+
+void handleReversing(){
+  setDirectionBackward();
+  activateSpeed(MOTOR_HALF_SPEED);
+  if (testReversingTimerExpired()) switchDirections();
+  avoidLines();
+}
+
+void handleSwitching(){
+  setDirectionRight();
+  activateSpeed(MOTOR_HALF_SPEED);
+  if (testSwitchingTimerExpired()) resumeForward();
+  avoidLines();
+}

@@ -18,6 +18,9 @@ void inputFreq();
 
 /*----------------------------Module Variables----------------------------*/
 const uint8_t TapeIR_1 = 23;              // Tape Sensor
+const uint8_t TapeIR_2 = 22;              // Tape Sensor
+const uint8_t TapeIR_3 = 21;              // Tape Sensor
+const uint8_t TapeIR_4 = 20;              // Tape Sensor
 
 const uint8_t SenseIR_1 = 14;             // IR Beacon Sensor
 
@@ -48,6 +51,9 @@ void setup()
   Serial.begin(9600);
 
   pinMode(TapeIR_1, INPUT);                 // Set Pin 23 as tape sensor input
+  pinMode(TapeIR_2, INPUT);                 // Set Pin 23 as tape sensor input
+  pinMode(TapeIR_3, INPUT);                 // Set Pin 23 as tape sensor input
+  pinMode(TapeIR_4, INPUT);                 // Set Pin 23 as tape sensor input
   pinMode(SenseIR_1, INPUT);                // Set Pin 14 as IR beacon sensor
 
   pinMode(Limit_1, INPUT);                  // Set Pin 7 as Limit Switch 1
@@ -78,21 +84,30 @@ void setup()
 void loop() 
 {
   // put your main code here, to run repeatedly:
-  uint16_t photo_tr = analogRead(TapeIR_1);
+  uint16_t photo_tr_1 = analogRead(TapeIR_1);
+  uint16_t photo_tr_2 = analogRead(TapeIR_2);
+  uint16_t photo_tr_3 = analogRead(TapeIR_3);
+  uint16_t photo_tr_4 = analogRead(TapeIR_4);
   uint16_t photo_ir = digitalRead(SenseIR_1);
 
   uint8_t limit_in1 = digitalRead(Limit_1);
   
-  Serial.print("Limit Switch: ");
-  Serial.print(limit_in1);
-  Serial.print("    Tape Sensor: ");
-  Serial.print(photo_tr);
-  Serial.print("    IR Sensor: ");
+  //Serial.print("Limit Switch: ");
+  //Serial.print(limit_in1);
+  Serial.print("    Tape Sensor 1: ");
+  Serial.println(photo_tr_1);
+  Serial.print("    Tape Sensor 2: ");
+  Serial.println(photo_tr_2);
+  Serial.print("    Tape Sensor 3: ");
+  Serial.println(photo_tr_3);
+  Serial.print("    Tape Sensor 4: ");
+  Serial.println(photo_tr_4);
+  /*Serial.print("    IR Sensor: ");
   Serial.print(photo_ir);
   Serial.print("    Frequency: ");
-  Serial.println(EdgeCount*100);
+  Serial.println(EdgeCount*100);*/
 
-  // delay(50);
+  delay(50);
 
   if (testForKey()) RespToKey();
 
