@@ -107,7 +107,7 @@ void loop()
   Serial.print("    Frequency: ");
   Serial.println(EdgeCount*100);*/
 
-  delay(50);
+  delay(1000); 
 
   if (testForKey()) RespToKey();
 
