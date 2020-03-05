@@ -3,7 +3,7 @@
 
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
-#define GAME_TIMER_INTERVAL     130000
+#define GAME_TIMER_INTERVAL     50000
 #define ROTATE_PI_INTERVAL      2000    // Need to calibrate (pi/2 rads)
 #define OB_BACK_INTERVAL        500     // Need to calibrate
 #define OB_ROTATE_INTERVAL      500     // Need to calibrate
@@ -34,6 +34,10 @@ void handleOutOfBoundsRightBackup(void);
 void gameFinished(void);
 void alignmentFinished(void);
 void outOfBoundsFinished(void);
+void handleOutOfBoundsRightForward(void);
+void handleOutOfBoundsLeftForward(void);
+
+
 
 /*---------------------------State Definitions----------------------------*/
 typedef enum {
@@ -55,11 +59,11 @@ typedef enum {
 /*----------------------------Module Variables----------------------------*/
 States_t state;
 static Metro gameTimer = Metro(GAME_TIMER_INTERVAL); // TODO change to millis()
-static Metro alignTimer = Metro(2 * ROTATE_PI_INTERVAL / 2);
+static Metro alignTimer = Metro(ROTATE_PI_INTERVAL / 2);
 static Metro outOfBoundsRotateTimer = Metro(OB_ROTATE_INTERVAL);
 static Metro outOfBoundsBackwardForwardTimer = Metro(OB_BACK_INTERVAL);
 static Metro reverseTimer = Metro(REVERSE_INTERVAL);
-static Metro switchTimer = Metro(ROTATE_PI_INTERVAL * 1.5);
+static Metro switchTimer = Metro(ROTATE_PI_INTERVAL);
 static Metro pushingTimer = Metro(PUSHING_INTERVAL);
 IntervalTimer inputFrequencyTimer;
 
@@ -115,7 +119,7 @@ void recordMeasuredIRFrequency() {
 
 void setup() {
   Serial.begin(9300);
-  while(!Serial);
+  //while(!Serial);
 
   state = STATE_IDLE;
   
