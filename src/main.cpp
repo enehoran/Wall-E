@@ -13,7 +13,7 @@
 #define MOTOR_HALF_SPEED        124
 #define MOTOR_SLOW_SPEED        80
 #define MOTOR_STOP              0
-#define LINE_THRESHOLD          150     // Need to calibrate
+#define LINE_THRESHOLD          150
 #define ALIGN_ROTATE_DIRECTION  "right"
 
 /*-----------------------Module Function Prototypes-----------------------*/
@@ -34,6 +34,10 @@ void handleOutOfBoundsRightBackup(void);
 void gameFinished(void);
 void alignmentFinished(void);
 void outOfBoundsFinished(void);
+void handleOutOfBoundsRightForward(void);
+void handleOutOfBoundsLeftForward(void);
+
+
 
 /*---------------------------State Definitions----------------------------*/
 typedef enum {
@@ -55,11 +59,11 @@ typedef enum {
 /*----------------------------Module Variables----------------------------*/
 States_t state;
 static Metro gameTimer = Metro(GAME_TIMER_INTERVAL); // TODO change to millis()
-static Metro alignTimer = Metro(2 * ROTATE_PI_INTERVAL / 2);
+static Metro alignTimer = Metro(ROTATE_PI_INTERVAL / 2);
 static Metro outOfBoundsRotateTimer = Metro(OB_ROTATE_INTERVAL);
 static Metro outOfBoundsBackwardForwardTimer = Metro(OB_BACK_INTERVAL);
 static Metro reverseTimer = Metro(REVERSE_INTERVAL);
-static Metro switchTimer = Metro(ROTATE_PI_INTERVAL * 1.5);
+static Metro switchTimer = Metro(ROTATE_PI_INTERVAL);
 static Metro pushingTimer = Metro(PUSHING_INTERVAL);
 IntervalTimer inputFrequencyTimer;
 
