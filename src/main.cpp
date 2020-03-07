@@ -4,7 +4,7 @@
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
 #define GAME_TIMER_INTERVAL     50000
-#define ROTATE_PI_INTERVAL      2000    // Need to calibrate (pi/2 rads)
+#define ROTATE_PI_INTERVAL      3000    // Calibrated to pi/2 rads (March 7th 04:13)
 #define OB_BACK_INTERVAL        500     // Need to calibrate
 #define OB_ROTATE_INTERVAL      500     // Need to calibrate
 #define PUSHING_INTERVAL        100     // Need to calibrate
@@ -44,7 +44,7 @@ typedef enum {
   STATE_IDLE,
   STATE_LOCALIZE,
   STATE_ALIGN,
-  STATE_FORWARD, 
+  STATE_FORWARD,
   STATE_OUT_OB_L_R,
   STATE_OUT_OB_R_R,
   STATE_OUT_OB_L_B,
@@ -59,7 +59,7 @@ typedef enum {
 /*----------------------------Module Variables----------------------------*/
 States_t state;
 static Metro gameTimer = Metro(GAME_TIMER_INTERVAL); // TODO change to millis()
-static Metro alignTimer = Metro(ROTATE_PI_INTERVAL / 2);
+static Metro alignTimer = Metro(ROTATE_PI_INTERVAL);
 static Metro outOfBoundsRotateTimer = Metro(OB_ROTATE_INTERVAL);
 static Metro outOfBoundsBackwardForwardTimer = Metro(OB_BACK_INTERVAL);
 static Metro reverseTimer = Metro(REVERSE_INTERVAL);
@@ -69,10 +69,10 @@ IntervalTimer inputFrequencyTimer;
 
 bool gameActive = true;
 
-const uint8_t tapeIR_FRONT_LEFT = 22;          // Front Left Tape Sensor
-const uint8_t tapeIR_FRONT_RIGHT = 23;         // Front Right Tape Sensor
-const uint8_t tapeIR_BACK_LEFT = 20;           // Back Left Tape Sensor
-const uint8_t tapeIR_BACK_RIGHT = 21;          // Back Right Tape Sensor
+const uint8_t tapeIR_FRONT_LEFT = 23;          // Front Left Tape Sensor
+const uint8_t tapeIR_FRONT_RIGHT = 21;         // Front Right Tape Sensor
+const uint8_t tapeIR_BACK_LEFT = 22;           // Back Left Tape Sensor
+const uint8_t tapeIR_BACK_RIGHT = 20;          // Back Right Tape Sensor
 
 const uint8_t senseIR_1 = 14;                  // IR Beacon Sensor
 
@@ -122,24 +122,24 @@ void setup() {
   //while(!Serial);
 
   state = STATE_IDLE;
-  
+
   pinMode(tapeIR_FRONT_LEFT, INPUT);            // Set Pin 23 as tape sensor input
   pinMode(tapeIR_FRONT_RIGHT, INPUT);           // Set Pin 23 as tape sensor input
   pinMode(tapeIR_BACK_LEFT, INPUT);             // Set Pin 23 as tape sensor input
   pinMode(tapeIR_BACK_RIGHT, INPUT);            // Set Pin 23 as tape sensor input
-  
+
   pinMode(senseIR_1, INPUT);                    // Set Pin 14 as IR beacon sensor
-  
-  pinMode(rightMotors_IN1_IN3, OUTPUT);         // Set Pin 0 as Right Motor Logic Input 1    
+
+  pinMode(rightMotors_IN1_IN3, OUTPUT);         // Set Pin 0 as Right Motor Logic Input 1
   pinMode(rightMotors_IN2_IN4, OUTPUT);         // Set Pin 1 as Right Motor Logic Input 2
   pinMode(rightMotorFront_EnA, OUTPUT);         // Set Pin 3 as Right Front Motor PWM Speed Control
   pinMode(rightMotorBack_EnB, OUTPUT);          // Set Pin 4 as Right Back Motor PWM Speed Control
-  
+
   pinMode(leftMotors_IN1_IN3, OUTPUT);          // Set Pin 5 as Left Motor Logic Input 1
   pinMode(leftMotors_IN2_IN4, OUTPUT);          // Set Pin 6 as Left Motor Logic Input 2
   pinMode(leftMotorFront_EnA, OUTPUT);          // Set Pin 9 as Left Front Motor PWM Speed Control
   pinMode(leftMotorBack_EnB, OUTPUT);           // Set Pin 10 as Left Back Motor PWM Speed Control
-  
+
   pinMode(limit_1, INPUT);                      // Set Pin 7 as Limit Switch 1
   pinMode(limit_2, INPUT);                      // Set Pin 8 as Limit Switch 2
 
@@ -312,7 +312,7 @@ void handleAlign(){
   else if (strcmp(ALIGN_ROTATE_DIRECTION, "left") == 0) {
     setDirectionLeft();
   }
-  
+
   activateSpeed(MOTOR_HALF_SPEED);
 };
 
