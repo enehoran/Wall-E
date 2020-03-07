@@ -94,20 +94,20 @@ void loop()
   
   //Serial.print("Limit Switch: ");
   //Serial.print(limit_in1);
-  Serial.print("    Tape Sensor 1: ");
-  Serial.println(photo_tr_1);
-  Serial.print("    Tape Sensor 2: ");
-  Serial.println(photo_tr_2);
-  Serial.print("    Tape Sensor 3: ");
-  Serial.println(photo_tr_3);
-  Serial.print("    Tape Sensor 4: ");
+  Serial.print("    Tape Sensor 1 (FR): ");
+  Serial.print(photo_tr_1);
+  Serial.print("    Tape Sensor 2 (BR): ");
+  Serial.print(photo_tr_2);
+  Serial.print("    Tape Sensor 3 (FL): ");
+  Serial.print(photo_tr_3);
+  Serial.print("    Tape Sensor 4 (BL): ");
   Serial.println(photo_tr_4);
   /*Serial.print("    IR Sensor: ");
   Serial.print(photo_ir);
   Serial.print("    Frequency: ");
   Serial.println(EdgeCount*100);*/
 
-  delay(1000); 
+  delay(500); 
 
   if (testForKey()) RespToKey();
 
