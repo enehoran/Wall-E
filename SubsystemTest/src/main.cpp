@@ -35,8 +35,11 @@ const uint8_t Left_Motor_Front_EnA = 9;   // PWM Speed Control
 const uint8_t Left_Motor_Back_EnB = 10;   // PWM Speed Control
 
 const uint8_t Limit_1 = 7;                // Limit Switch
+const uint8_t Limit_2 = 8;                // Limit Switch
 
 int key;                                  // Motor Test Input
+
+int measuredIRFrequency = 0;              // IR sensor input reading
 
 // Edge Counting Variables
 IntervalTimer InputFreqTimer;
@@ -57,6 +60,7 @@ void setup()
   pinMode(SenseIR_1, INPUT);                // Set Pin 14 as IR beacon sensor
 
   pinMode(Limit_1, INPUT);                  // Set Pin 7 as Limit Switch 1
+  pinMode(Limit_2, INPUT);                  // Set Pin 8 as Limit Switch 2
 
   pinMode(Right_Motors_IN1_IN3, OUTPUT);    // Set Pin 0 as Right Motor Logic Input 1
   pinMode(Right_Motors_IN2_IN4, OUTPUT);    // Set Pin 1 as Right Motor Logic Input 2
@@ -88,26 +92,31 @@ void loop()
   uint16_t photo_tr_2 = analogRead(TapeIR_2);
   uint16_t photo_tr_3 = analogRead(TapeIR_3);
   uint16_t photo_tr_4 = analogRead(TapeIR_4);
+  
   uint16_t photo_ir = digitalRead(SenseIR_1);
 
   uint8_t limit_in1 = digitalRead(Limit_1);
+  uint8_t limit_in2 = digitalRead(Limit_2);
   
-  //Serial.print("Limit Switch: ");
-  //Serial.print(limit_in1);
-  Serial.print("    Tape Sensor 1: ");
-  Serial.println(photo_tr_1);
-  Serial.print("    Tape Sensor 2: ");
-  Serial.println(photo_tr_2);
-  Serial.print("    Tape Sensor 3: ");
-  Serial.println(photo_tr_3);
-  Serial.print("    Tape Sensor 4: ");
-  Serial.println(photo_tr_4);
-  /*Serial.print("    IR Sensor: ");
-  Serial.print(photo_ir);
-  Serial.print("    Frequency: ");
-  Serial.println(EdgeCount*100);*/
+  Serial.print("    Tape 1 (FL): ");
+  Serial.print(photo_tr_1);
+  Serial.print("    Tape 2 (BL): ");
+  Serial.print(photo_tr_2);
+  Serial.print("    Tape 3 (FR): ");
+  Serial.print(photo_tr_3);
+  Serial.print("    Tape Sensor 4 (BR): ");
+  Serial.print(photo_tr_4);
+  Serial.print("    Limit 1 (R): ");
+  Serial.print(limit_in1);
+  Serial.print("    Limit 2 (L): ");
+  Serial.println(limit_in2);
 
-  delay(1000); 
+  // Serial.print("    IR Sensor: ");
+  // Serial.print(photo_ir);
+  // Serial.print("    Frequency: ");
+  // Serial.println(measuredIRFrequency);
+
+  delay(500); 
 
   if (testForKey()) RespToKey();
 
@@ -122,7 +131,10 @@ void CountFallingEdges()
 }
 void inputFreq()
 {
-  // Serial.println(EdgeCount*100);
+  noInterrupts();
+  measuredIRFrequency = EdgeCount * 100;
+  interrupts();
+
   EdgeCount = 0;
 }
 //-----
