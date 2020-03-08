@@ -25,16 +25,12 @@ void handlePushing(void);
 void handleReversing(void);
 void handleSwitching(void);
 void activateSpeed(int value);
-void handleOutOfBoundsLeftRotate(void);
-void handleOutOfBoundsRightRotate(void);
-void handleOutOfBoundsLeftBackup(void);
-void handleOutOfBoundsRightBackup(void);
+void handleOutOfBoundsRotate(void);
+void handleOutOfBoundsBackup(void);
+void handleOutOfBoundsForward(void);
 void gameFinished(void);
 void alignmentFinished(void);
 void outOfBoundsFinished(void);
-void handleOutOfBoundsRightForward(void);
-void handleOutOfBoundsLeftForward(void);
-
 
 
 /*---------------------------State Definitions----------------------------*/
@@ -43,15 +39,10 @@ typedef enum {
   STATE_LOCALIZE,
   STATE_ALIGN,
   STATE_FORWARD,
-  STATE_OUT_OB_L_R,
-  STATE_OUT_OB_R_R,
-  STATE_OUT_OB_L_B,
-  STATE_OUT_OB_R_B,
-  STATE_OUT_OB_L_F,
-  STATE_OUT_OB_R_F,
+  STATE_OUT_OB_ROT,
+  STATE_OUT_OB_BACK,
+  STATE_OUT_OB_FORWARD,
   STATE_PUSHING,
-  STATE_REVERSING,
-  STATE_SWITCHING,
 } States_t;
 
 /*----------------------------Module Variables----------------------------*/
@@ -87,7 +78,7 @@ const uint8_t limit_1 = 7;                     // Limit Switch 1
 const uint8_t limit_2 = 8;                     // Limit Switch 2
 
 const uint8_t COMM_IN = 11;                    // Input from other bot
-const uint8_t COMM_OUT = 12;                   // Output from one bot to another
+const uint8_t COMM_OUT = 12;                   // Output to other bot
 
 int key;                                       // Motor Test Input
 int limit1Input;                               // First limit switch input reading
@@ -100,7 +91,7 @@ volatile uint16_t edgeCount = 0;               // Track number of falling waves 
 volatile float irMeasurementFrequency = 10000; // Calculate every 10,000 micro-seconds
 float irFrequencyPrecision = 20;               // Need to calibrate
 
-bool alignRotateDirection = 'R';                  
+bool rotationDirection = 'R';                  
 
 /*-----------------------------Main Functions-----------------------------*/
 
@@ -173,41 +164,21 @@ void loop() {
       Serial.println("State: Forward");
       handleMoveForward();
       break;
-    case STATE_OUT_OB_L_R:
-      Serial.println("State: Out of bounds, turning (left)");
-      handleOutOfBoundsLeftRotate();
+    case STATE_OUT_OB_ROT:
+      Serial.println("State: Out of bounds, turning");
+      handleOutOfBoundsRotate();
       break;
-    case STATE_OUT_OB_R_R:
-      Serial.println("State: Out of bounds, turning (right)");
-      handleOutOfBoundsRightRotate();
+    case STATE_OUT_OB_BACK:
+      Serial.println("State: Out of bounds, backing up");
+      handleOutOfBoundsBackup();
       break;
-    case STATE_OUT_OB_L_B:
-      Serial.println("State: Out of bounds, backing up (left)");
-      handleOutOfBoundsLeftBackup();
-      break;
-    case STATE_OUT_OB_R_B:
-      Serial.println("State: Out of bounds, backing up (right)");
-      handleOutOfBoundsRightBackup();
-      break;
-    case STATE_OUT_OB_L_F:
-      Serial.println("State: Out of bounds, going forward (left)");
-      handleOutOfBoundsLeftForward();
-      break;
-    case STATE_OUT_OB_R_F:
-      Serial.println("State: Out of bounds, going forward (right)");
-      handleOutOfBoundsRightForward();
+    case STATE_OUT_OB_FORWARD:
+      Serial.println("State: Out of bounds, going forward");
+      handleOutOfBoundsForward();
       break;
     case STATE_PUSHING:
       Serial.println("State: Pushing");
       handlePushing();
-      break;
-    case STATE_REVERSING:
-      Serial.println("State: Reversing");
-      handleReversing();
-      break;
-    case STATE_SWITCHING:
-      Serial.println("State: Switching");
-      handleSwitching();
       break;
     default:    // Should never get into an unhandled state
       Serial.println("What is this I do not even...");
@@ -228,14 +199,6 @@ uint8_t testOutOfBoundsRotateTimerExpired(void) {
 
 uint8_t testOutOfBoundsBackupForwardTimerExpired(void) {
   return (uint8_t) outOfBoundsBackwardForwardTimer.check();
-}
-
-uint8_t testReversingTimerExpired(void) {
-  return (uint8_t) reverseTimer.check();
-}
-
-uint8_t testSwitchingTimerExpired(void) {
-  return (uint8_t) switchTimer.check();
 }
 
 void checkGlobalEvents() {
@@ -296,7 +259,7 @@ void handleLocalize(){
   }
   if (digitalRead(COMM_IN) == HIGH){
     state = STATE_ALIGN;
-    alignRotateDirection = 'L';
+    rotationDirection = 'L';
   }
 };
 
@@ -306,10 +269,10 @@ void handleAlign(){
     alignmentFinished();
   }
 
-  if (alignRotateDirection == 'R') {
+  if (rotationDirection == 'R') {
     setDirectionRight();
   }
-  else if (alignRotateDirection == 'L') {
+  else if (rotationDirection == 'L') {
     setDirectionLeft();
   }
 
@@ -342,20 +305,12 @@ void avoidLines() {
   uint16_t tapeSensorMeasurementBackLeft = analogRead(tapeIR_BACK_LEFT);
   uint16_t tapeSensorMeasurementBackRight = analogRead(tapeIR_BACK_RIGHT);
   Serial.println(LINE_THRESHOLD);
-  if (tapeSensorMeasurementFrontLeft < LINE_THRESHOLD) {
-    state = STATE_OUT_OB_L_B;
+  if (tapeSensorMeasurementFrontLeft < LINE_THRESHOLD || tapeSensorMeasurementFrontRight < LINE_THRESHOLD) {
+    state = STATE_OUT_OB_BACK;
     outOfBoundsBackwardForwardTimer.reset();
   }
-  else if (tapeSensorMeasurementFrontRight < LINE_THRESHOLD) {
-    state = STATE_OUT_OB_R_B;
-    outOfBoundsBackwardForwardTimer.reset();
-  }
-  else if (tapeSensorMeasurementBackLeft < LINE_THRESHOLD) {
-    state = STATE_OUT_OB_L_F;
-    outOfBoundsBackwardForwardTimer.reset();
-  }
-  else if (tapeSensorMeasurementBackRight < LINE_THRESHOLD) {
-    state = STATE_OUT_OB_R_F;
+  else if (tapeSensorMeasurementBackLeft < LINE_THRESHOLD || tapeSensorMeasurementBackRight < LINE_THRESHOLD) {
+    state = STATE_OUT_OB_FORWARD;
     outOfBoundsBackwardForwardTimer.reset();
   }
 }
@@ -386,50 +341,31 @@ void handleMoveForward(){
   avoidLines();
 };
 
-void handleOutOfBoundsLeftRotate(){
-  setDirectionRight();
+void handleOutOfBoundsRotate(){
+  if (rotationDirection == 'L'){
+    setDirectionLeft();
+  }
+  else if (rotationDirection == 'R'){
+    setDirectionRight();
+  }
   activateSpeed(MOTOR_HALF_SPEED);
   if (testOutOfBoundsRotateTimerExpired()) outOfBoundsFinished();
 };
 
-void handleOutOfBoundsRightRotate(){
-  setDirectionLeft();
-  activateSpeed(MOTOR_HALF_SPEED);
-  if (testOutOfBoundsRotateTimerExpired()) outOfBoundsFinished();
-};
-
-void handleOutOfBoundsLeftBackup(){
+void handleOutOfBoundsBackup(){
   setDirectionBackward();
   activateSpeed(MOTOR_HALF_SPEED);
   if (testOutOfBoundsBackupForwardTimerExpired()){
-    state = STATE_OUT_OB_R_R;
+    state = STATE_OUT_OB_ROT;
     outOfBoundsRotateTimer.reset();
   }
 };
 
-void handleOutOfBoundsRightBackup(){
-  setDirectionBackward();
-  activateSpeed(MOTOR_HALF_SPEED);
-  if (testOutOfBoundsBackupForwardTimerExpired()){
-    state = STATE_OUT_OB_L_R;
-    outOfBoundsRotateTimer.reset();
-  }
-};
-
-void handleOutOfBoundsLeftForward(){
+void handleOutOfBoundsForward(){
   setDirectionForward();
   activateSpeed(MOTOR_HALF_SPEED);
   if (testOutOfBoundsBackupForwardTimerExpired()){
-    state = STATE_OUT_OB_L_R;
-    outOfBoundsRotateTimer.reset();
-  }
-};
-
-void handleOutOfBoundsRightForward(){
-  setDirectionForward();
-  activateSpeed(MOTOR_HALF_SPEED);
-  if (testOutOfBoundsBackupForwardTimerExpired()){
-    state = STATE_OUT_OB_R_R;
+    state = STATE_OUT_OB_ROT;
     outOfBoundsRotateTimer.reset();
   }
 };
