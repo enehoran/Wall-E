@@ -3,14 +3,14 @@
 
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
-#define GAME_TIMER_INTERVAL     130000
-#define ROTATE_PI_INTERVAL      2000
+#define GAME_TIMER_INTERVAL     40000
+#define ROTATE_PI_INTERVAL      2200
 #define OB_BACK_INTERVAL        500
-#define OB_ROTATE_INTERVAL      500
+#define OB_ROTATE_INTERVAL      2000
 #define PUSHING_INTERVAL        100
 #define REVERSE_INTERVAL        500
 #define MOTOR_FULL_SPEED        255
-#define MOTOR_HALF_SPEED        110      //124
+#define MOTOR_HALF_SPEED        90//124
 #define MOTOR_SLOW_SPEED        90
 #define MOTOR_STOP              0
 #define LINE_THRESHOLD          150
@@ -63,7 +63,7 @@ static Metro alignTimer = Metro(ROTATE_PI_INTERVAL / 2);
 static Metro outOfBoundsRotateTimer = Metro(OB_ROTATE_INTERVAL);
 static Metro outOfBoundsBackwardForwardTimer = Metro(OB_BACK_INTERVAL);
 static Metro reverseTimer = Metro(REVERSE_INTERVAL);
-static Metro switchTimer = Metro(ROTATE_PI_INTERVAL * 2);
+static Metro switchTimer = Metro(ROTATE_PI_INTERVAL * 1.5);
 static Metro pushingTimer = Metro(PUSHING_INTERVAL);
 IntervalTimer inputFrequencyTimer;
 
@@ -119,7 +119,7 @@ void recordMeasuredIRFrequency() {
 
 void setup() {
   Serial.begin(9300);
-  while(!Serial);
+  //while(!Serial);
 
   state = STATE_IDLE;
   
@@ -365,8 +365,18 @@ void initiateBackup(){
   reverseTimer.reset();
 }
 
+void stopMotors(){
+  digitalWrite(rightMotors_IN1_IN3, HIGH);
+  digitalWrite(rightMotors_IN2_IN4, HIGH);
+
+  digitalWrite(leftMotors_IN1_IN3, HIGH);
+  digitalWrite(leftMotors_IN2_IN4, HIGH);
+}
+
 void switchDirections(){
   state = STATE_SWITCHING;
+  stopMotors();
+  delay(1000);
   switchTimer.reset();
 }
 
@@ -400,7 +410,7 @@ void handleOutOfBoundsLeftBackup(){
   setDirectionBackward();
   activateSpeed(MOTOR_HALF_SPEED);
   if (testOutOfBoundsBackupForwardTimerExpired()){
-    state = STATE_OUT_OB_L_R;
+    state = STATE_OUT_OB_R_R;
     outOfBoundsRotateTimer.reset();
   }
 };
@@ -409,7 +419,7 @@ void handleOutOfBoundsRightBackup(){
   setDirectionBackward();
   activateSpeed(MOTOR_HALF_SPEED);
   if (testOutOfBoundsBackupForwardTimerExpired()){
-    state = STATE_OUT_OB_R_R;
+    state = STATE_OUT_OB_L_R;
     outOfBoundsRotateTimer.reset();
   }
 };
