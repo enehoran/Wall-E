@@ -6,7 +6,7 @@
 #define GAME_TIMER_INTERVAL     50000
 #define ROTATE_PI_INTERVAL      3000
 #define OB_BACK_INTERVAL        500
-#define OB_ROTATE_INTERVAL      500
+#define OB_ROTATE_INTERVAL      1200
 #define REVERSE_INTERVAL        500
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
