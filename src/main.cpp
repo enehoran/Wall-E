@@ -315,11 +315,6 @@ void avoidLines() {
   }
 }
 
-void initiateBackup(){
-  state = STATE_REVERSING;
-  reverseTimer.reset();
-}
-
 void stopMotors(){
   digitalWrite(rightMotors_IN1_IN3, HIGH);
   digitalWrite(rightMotors_IN2_IN4, HIGH);
