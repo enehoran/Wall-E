@@ -3,18 +3,19 @@
 
 /*-----------------------------Module Defines-----------------------------*/
 #define IR_BEACON_FREQUENCY     1000
-#define GAME_TIMER_INTERVAL     50000
+#define GAME_TIMER_INTERVAL     120000
 #define ROTATE_PI_INTERVAL      3000
 #define OB_BACK_INTERVAL        500
-#define OB_ROTATE_INTERVAL      1200
+#define OB_ROTATE_INTERVAL      350
 #define REVERSE_INTERVAL        500
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
-#define MOTOR_SLOW_SPEED        90
+#define MOTOR_SLOW_SPEED        80
 #define MOTOR_STOP              0
 #define LINE_THRESHOLD          150
 
 /*-----------------------Module Function Prototypes-----------------------*/
+void avoidLines(void);
 void checkGlobalEvents(void);
 void handleIdle(void);
 void handleLocalize(void);
@@ -34,6 +35,7 @@ void alignmentFinished(void);
 void outOfBoundsFinished(void);
 void handleOutOfBoundsRightForward(void);
 void handleOutOfBoundsLeftForward(void);
+void setLocalizeDirection(void);
 
 
 
@@ -57,7 +59,7 @@ typedef enum {
 /*----------------------------Module Variables----------------------------*/
 States_t state;
 static Metro gameTimer = Metro(GAME_TIMER_INTERVAL);
-static Metro alignTimer = Metro(ROTATE_PI_INTERVAL);
+static Metro alignTimer = Metro(ROTATE_PI_INTERVAL*2.0/3+50);
 static Metro outOfBoundsRotateTimer = Metro(OB_ROTATE_INTERVAL);
 static Metro outOfBoundsBackwardForwardTimer = Metro(OB_BACK_INTERVAL);
 static Metro reverseTimer = Metro(REVERSE_INTERVAL);
@@ -117,7 +119,7 @@ void recordMeasuredIRFrequency() {
 
 void setup() {
   Serial.begin(9300);
-  //while(!Serial);
+  // while(!Serial);
 
   state = STATE_IDLE;
 
@@ -140,6 +142,10 @@ void setup() {
 
   pinMode(limit_1, INPUT);                      // Set Pin 7 as Limit Switch 1
   pinMode(limit_2, INPUT);                      // Set Pin 8 as Limit Switch 2
+
+  pinMode(COMM_IN, INPUT);
+  pinMode(COMM_OUT, OUTPUT);
+  digitalWrite(COMM_OUT, LOW);
 
   attachInterrupt(digitalPinToInterrupt(senseIR_1), countFallingEdges, FALLING);
   inputFrequencyTimer.begin(recordMeasuredIRFrequency, irMeasurementFrequency);
@@ -203,11 +209,11 @@ void loop() {
       break;
     case STATE_REVERSING:
       Serial.println("State: Reversing");
-      handleReversing();
+      // handleReversing();
       break;
     case STATE_SWITCHING:
       Serial.println("State: Switching");
-      handleSwitching();
+      // handleSwitching();
       break;
     default:    // Should never get into an unhandled state
       Serial.println("What is this I do not even...");
@@ -285,8 +291,9 @@ void alignmentFinished(){
 }
 
 void handleLocalize(){
-  setDirectionRight();
-  activateSpeed(MOTOR_SLOW_SPEED);
+  setLocalizeDirection();
+  // setDirectionRight();
+  // activateSpeed(MOTOR_SLOW_SPEED);
   Serial.println(abs(IR_BEACON_FREQUENCY - measuredIRFrequency));
   if (abs(IR_BEACON_FREQUENCY - measuredIRFrequency) < irFrequencyPrecision){
     state = STATE_ALIGN;
@@ -297,6 +304,7 @@ void handleLocalize(){
   if (digitalRead(COMM_IN) == HIGH){
     state = STATE_ALIGN;
     alignRotateDirection = 'L';
+    alignTimer.reset();
   }
 };
 
@@ -305,15 +313,17 @@ void handleAlign(){
     Serial.println("Align timer expired");
     alignmentFinished();
   }
-
+  //-------------Code never comes in here------------ But it works. Don't Fix
   if (alignRotateDirection == 'R') {
     setDirectionRight();
   }
   else if (alignRotateDirection == 'L') {
     setDirectionLeft();
   }
+  //-------------------------------------------------
 
   activateSpeed(MOTOR_HALF_SPEED);
+  avoidLines();
 };
 
 void setDirectionForward() {
@@ -330,6 +340,21 @@ void setDirectionBackward() {
 
   digitalWrite(leftMotors_IN1_IN3, HIGH);
   digitalWrite(leftMotors_IN2_IN4, LOW);
+}
+
+void setLocalizeDirection()
+{
+  digitalWrite(rightMotors_IN1_IN3, HIGH);
+  digitalWrite(rightMotors_IN2_IN4, LOW);
+
+  digitalWrite(leftMotors_IN1_IN3, LOW);
+  digitalWrite(leftMotors_IN2_IN4, LOW);
+
+  analogWrite(rightMotorFront_EnA, MOTOR_SLOW_SPEED);
+  analogWrite(rightMotorBack_EnB, MOTOR_SLOW_SPEED);
+
+  analogWrite(leftMotorFront_EnA, 0);
+  analogWrite(leftMotorBack_EnB, 0);
 }
 
 void outOfBoundsFinished() {
@@ -387,13 +412,13 @@ void handleMoveForward(){
 };
 
 void handleOutOfBoundsLeftRotate(){
-  setDirectionRight();
+  setDirectionLeft();
   activateSpeed(MOTOR_HALF_SPEED);
   if (testOutOfBoundsRotateTimerExpired()) outOfBoundsFinished();
 };
 
 void handleOutOfBoundsRightRotate(){
-  setDirectionLeft();
+  setDirectionRight();
   activateSpeed(MOTOR_HALF_SPEED);
   if (testOutOfBoundsRotateTimerExpired()) outOfBoundsFinished();
 };

@@ -4,7 +4,7 @@
 /*-----------------------------Module Defines-----------------------------*/
 #define MOTOR_FULL_SPEED        255
 #define MOTOR_HALF_SPEED        124
-#define MOTOR_SLOW_SPEED        50
+#define MOTOR_SLOW_SPEED        75
 #define MOTOR_STOP              0
 
 /*-----------------------Module Function Prototypes-----------------------*/
@@ -164,11 +164,11 @@ void RespToKey(void) {
   {
     Serial.println("Motors Medium Speed");
 
-    analogWrite(Right_Motor_Front_EnA, MOTOR_HALF_SPEED);
-    analogWrite(Right_Motor_Back_EnB, MOTOR_HALF_SPEED);
+    analogWrite(Right_Motor_Front_EnA, 0);
+    analogWrite(Right_Motor_Back_EnB, 0);
 
-    analogWrite(Left_Motor_Front_EnA, MOTOR_HALF_SPEED);
-    analogWrite(Left_Motor_Back_EnB, MOTOR_HALF_SPEED);
+    analogWrite(Left_Motor_Front_EnA, MOTOR_SLOW_SPEED);
+    analogWrite(Left_Motor_Back_EnB, MOTOR_SLOW_SPEED);
   }
   else if (key == 'p' || key == 'P')         // Letter P
   {
@@ -217,8 +217,8 @@ void RespToKey(void) {
     digitalWrite(Right_Motors_IN1_IN3, LOW);
     digitalWrite(Right_Motors_IN2_IN4, HIGH);
 
-    digitalWrite(Left_Motors_IN1_IN3, HIGH);
-    digitalWrite(Left_Motors_IN2_IN4, LOW); 
+    digitalWrite(Left_Motors_IN1_IN3, LOW);
+    digitalWrite(Left_Motors_IN2_IN4, HIGH); 
   }
   else if (key == 76 || key == 108)        // Letter L
   {
